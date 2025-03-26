@@ -407,7 +407,7 @@ Based on the above information, provide matching suggestions for the ideal food 
 @app.post("/api/matching", response_model=Dict[str, Any])
 async def matching_endpoint(match_req: MatchingRequest, current_user: Dict = Depends(get_current_user)):
     # Restrict to food_bank role only
-    if current_user.get("role") != "supermarket":
+    if current_user.get("role") not in ["supermarket","admin"]:
         raise HTTPException(status_code=403, detail="Only supermarkets can access matching suggestions")
     
     listing_id = match_req.listing_id
