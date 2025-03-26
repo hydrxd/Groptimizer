@@ -69,7 +69,7 @@ function MatchingAndNeo4j() {
                 <section className="mb-6">
                     <h2 className="text-xl font-semibold text-gray-700 mb-2">Generate Matching Suggestions</h2>
                     <p className="mb-4 text-sm text-gray-600">
-                        <strong>(Food banks only)</strong>: Enter a listing ID to find matches.
+                        <strong>(Supermarkets only)</strong>: Enter a listing ID to find matches.
                     </p>
                     <form onSubmit={handleMatchingSubmit} className="space-y-4">
                         <div>
