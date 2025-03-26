@@ -34,6 +34,8 @@ function Listings() {
                             <h3 className="font-bold text-xl text-gray-800">{listing.title}</h3>
                             <p className="text-gray-600">{listing.description}</p>
                             <div className="mt-3 text-sm text-gray-700">
+                                <p><strong>Listing ID:</strong> {listing.id}</p>
+                                <p><strong>Location:</strong> {listing.location}</p>
                                 <p><strong>Category:</strong> {listing.category}</p>
                                 <p><strong>Quantity:</strong> {listing.quantity}</p>
                                 <p><strong>Expires:</strong> {new Date(listing.expiry_date).toLocaleDateString()}</p>

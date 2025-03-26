@@ -33,14 +33,14 @@ const Navbar = () => {
                     case "supermarket":
                         links.push(
                             { name: "Create Listing", to: "/create-listing", icon: <PlusCircle size={20} className="text-gray-300" /> },
-                            { name: "Requests", to: "/requests", icon: <Clipboard size={20} className="text-gray-300" /> }
+                            { name: "Requests", to: "/requests", icon: <Clipboard size={20} className="text-gray-300" /> },
+                            { name: "Matching", to: "/matching-neo4j", icon: <HeartHandshake size={20} className="text-gray-300" /> }
                         );
                         break;
                     case "food_bank":
                         links.push(
                             { name: "Requests", to: "/requests", icon: <Clipboard size={20} className="text-gray-300" /> },
-                            { name: "Create Request", to: "/create-request", icon: <PlusCircle size={20} className="text-gray-300" /> },
-                            { name: "Matching", to: "/matching-neo4j", icon: <HeartHandshake size={20} className="text-gray-300" /> }
+                            { name: "Create Request", to: "/create-request", icon: <PlusCircle size={20} className="text-gray-300" /> }
                         );
                         break;
                     case "consumer":

@@ -137,6 +137,7 @@ class RequestModel(BaseModel):
     id: Optional[str] = None
     listing_id: str
     requester_id: str
+    location: str
     status: str  # "pending", "approved", "declined"
     notes: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -266,6 +267,7 @@ async def create_request(req: RequestCreate, current_user: Dict = Depends(get_cu
         "id": str(await requests_collection.count_documents({}) + 1),
         "listing_id": req.listing_id,
         "requester_id": current_user["id"],
+        "location": current_user["location"],
         "status": "pending",
         "notes": req.notes,
         "created_at": datetime.now(timezone.utc)
@@ -405,8 +407,8 @@ Based on the above information, provide matching suggestions for the ideal food 
 @app.post("/api/matching", response_model=Dict[str, Any])
 async def matching_endpoint(match_req: MatchingRequest, current_user: Dict = Depends(get_current_user)):
     # Restrict to food_bank role only
-    if current_user.get("role") != "food_bank":
-        raise HTTPException(status_code=403, detail="Only food banks can access matching suggestions")
+    if current_user.get("role") != "supermarket":
+        raise HTTPException(status_code=403, detail="Only supermarkets can access matching suggestions")
     
     listing_id = match_req.listing_id
     listing = await listings_collection.find_one({"id": listing_id})

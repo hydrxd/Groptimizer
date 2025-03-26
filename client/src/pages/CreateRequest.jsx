@@ -7,6 +7,7 @@ function CreateRequest({ fetchRequests }) {
     const [listingId, setListingId] = useState('');
     const [notes, setNotes] = useState('');
     const [message, setMessage] = useState('');
+    const [location, setLocation] = useState('');
 
     const token = localStorage.getItem('access_token');
 
@@ -26,6 +27,7 @@ function CreateRequest({ fetchRequests }) {
             setMessage("Request created!");
             setListingId('');
             setNotes('');
+            setLocation('');
             fetchRequests();
         } catch (error) {
             setMessage("Failed to create request");

@@ -16,6 +16,7 @@ function Requests() {
             const res = await axios.get(`${BASE_URL}/requests`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            console.log(res.data);
             setRequests(res.data);
         } catch (error) {
             console.error("Error fetching requests", error);
@@ -51,8 +52,11 @@ function Requests() {
                     ) : (
                         requests.map((req) => (
                             <div key={req.request_id} className="bg-white/80 p-6 rounded-lg shadow-md mb-4">
-                                <p className="text-gray-700"><strong>Request ID:</strong> {req.request_id}</p>
+                                <p className="text-gray-700"><strong>Request ID:</strong> {req.id}</p>
                                 <p className="text-gray-700"><strong>Listing ID:</strong> {req.listing_id}</p>
+                                <p className="text-gray-700"><strong>Location:</strong> {req.location}</p>
+                                <p className="text-gray-700"><strong>Creation Date:</strong> {(() => new Date(req.created_at).toLocaleDateString('en-GB'))()}</p>
+                                <p className="text-gray-700"><strong>Notes:</strong> {req.notes}</p>
                                 <p className="text-gray-700"><strong>Status:</strong>
                                     <span className={`ml-2 px-3 py-1 rounded-full text-white text-sm 
                                         ${req.status === "pending" ? "bg-yellow-500" :
@@ -61,28 +65,30 @@ function Requests() {
                                     </span>
                                 </p>
 
-                                {auth.role && (auth.role === "supermarket" || auth.role === "admin") && req.status === "pending" && (
-                                    <div className="mt-4 flex gap-3">
-                                        <button
-                                            className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-700 transition"
-                                            onClick={() => handleUpdateRequest(req.request_id, "approved")}
-                                        >
-                                            Approve
-                                        </button>
-                                        <button
-                                            className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-700 transition"
-                                            onClick={() => handleUpdateRequest(req.request_id, "declined")}
-                                        >
-                                            Decline
-                                        </button>
-                                    </div>
-                                )}
+                                {
+                                    auth.role && (auth.role === "supermarket" || auth.role === "admin") && req.status === "pending" && (
+                                        <div className="mt-4 flex gap-3">
+                                            <button
+                                                className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-700 transition"
+                                                onClick={() => handleUpdateRequest(req.request_id, "approved")}
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-700 transition"
+                                                onClick={() => handleUpdateRequest(req.request_id, "declined")}
+                                            >
+                                                Decline
+                                            </button>
+                                        </div>
+                                    )
+                                }
                             </div>
                         ))
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

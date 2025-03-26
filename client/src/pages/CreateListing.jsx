@@ -7,8 +7,8 @@ function CreateListing() {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
-    const [quantity, setQuantity] = useState(1);
-    const [expiryDays, setExpiryDays] = useState(7);
+    const [quantity, setQuantity] = useState('');
+    const [expiryDays, setExpiryDays] = useState('');
     const [location, setLocation] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -36,8 +36,8 @@ function CreateListing() {
             setTitle('');
             setDescription('');
             setCategory('');
-            setQuantity(1);
-            setExpiryDays(7);
+            setQuantity('');
+            setExpiryDays('');
             setLocation('');
         } catch (err) {
             setError('Failed to create listing');
@@ -101,7 +101,7 @@ function CreateListing() {
                         <div className="relative">
                             <input
                                 type="number"
-                                placeholder="Expiry Days"
+                                placeholder="Expiry - Days from today"
                                 className="w-full bg-white/50 px-4 py-3 rounded-xl shadow-inner focus:ring-2 focus:ring-blue-400 transition"
                                 value={expiryDays}
                                 onChange={(e) => setExpiryDays(Number(e.target.value))}

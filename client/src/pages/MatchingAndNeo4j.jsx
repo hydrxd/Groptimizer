@@ -63,8 +63,8 @@ function MatchingAndNeo4j() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-green-100 p-6">
-            <div className="bg-white/70 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/50 w-full max-w-lg">
-                <h1 className="text-2xl font-bold text-gray-800 text-center mb-6">🔗 Matching & Neo4j</h1>
+            <div className="bg-white/70 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/50 w-full max-w-5xl">
+                <h1 className="text-2xl font-bold text-gray-800 text-center mb-6">🔗 Matching</h1>
 
                 <section className="mb-6">
                     <h2 className="text-xl font-semibold text-gray-700 mb-2">Generate Matching Suggestions</h2>
