@@ -7,7 +7,7 @@ function Home() {
     return (
         <div className="home-container bg-gradient-to-br from-green-100 to-green-200">
             {/* Hero Section */}
-            <div className="hero-container section-container bg-white shadow-lg rounded-xl py-16 px-8 mx-4 my-6">
+            <div className="hero-container section-container bg-white shadow-lg rounded-xl py-8 px-8 mx-4 my-6">
                 <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center">
                     {/* Content */}
                     <div className="lg:w-1/2 text-center lg:text-left">
@@ -97,7 +97,6 @@ function Home() {
             {/* Contact Us Section */}
             <div className="bg-blue-600 text-white py-16 px-8 rounded-xl mx-4 my-6">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h2 className="text-3xl font-extrabold drop-shadow-md">Contact Us</h2>
                     <p className="text-lg mt-4">Reach Out To Us At</p>
                     <p className="text-xl font-semibold mt-2">reachout@groptimizer.com</p>
                     <p className="text-lg mt-2">+91 999-000-9999</p>

@@ -31,7 +31,7 @@ function Register() {
 
     return (
         <div className="flex justify-center items-center min-h-screen bg-green-100">
-            <div className="bg-white/30 backdrop-blur-lg p-8 rounded-2xl shadow-lg w-full max-w-md">
+            <div className="bg-white/70 backdrop-blur-lg p-8 rounded-2xl shadow-lg w-full max-w-md">
                 <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">Create an Account</h2>
                 {error && <div className="text-red-600 text-center mb-4">{error}</div>}
                 <form onSubmit={handleSubmit} className="space-y-4">
