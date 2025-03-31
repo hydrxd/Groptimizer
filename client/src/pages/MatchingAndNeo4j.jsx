@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
@@ -6,10 +6,36 @@ const BASE_URL = "http://localhost:8000/api";
 
 function MatchingAndNeo4j() {
     const [listingId, setListingId] = useState('');
+    const [listingDetails, setListingDetails] = useState(null);
     const [matchingResponse, setMatchingResponse] = useState(null);
     const [matchingError, setMatchingError] = useState('');
+    const [loadingListing, setLoadingListing] = useState(false);
 
     const token = localStorage.getItem('access_token');
+
+    // Fetch listing details when listingId changes
+    useEffect(() => {
+        if (!listingId) {
+            setListingDetails(null);
+            return;
+        }
+
+        const fetchListingDetails = async () => {
+            setLoadingListing(true);
+            try {
+                const res = await axios.get(`${BASE_URL}/listings/${listingId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setListingDetails(res.data);
+            } catch (err) {
+                setListingDetails(null);
+            } finally {
+                setLoadingListing(false);
+            }
+        };
+
+        fetchListingDetails();
+    }, [listingId]);
 
     const handleMatchingSubmit = async (e) => {
         e.preventDefault();
@@ -82,6 +108,24 @@ function MatchingAndNeo4j() {
                                 required
                             />
                         </div>
+
+                        {/* Show listing details dynamically */}
+                        {loadingListing ? (
+                            <p className="text-sm text-gray-500">Fetching listing details...</p>
+                        ) : listingDetails ? (
+                            <div className="p-4 bg-gray-100 rounded-lg shadow">
+                                <h3 className="font-bold mb-2">Listing Details:</h3>
+                                <p><strong>Title:</strong> {listingDetails.title}</p>
+                                <p><strong>Description:</strong> {listingDetails.description}</p>
+                                <p><strong>Category:</strong> {listingDetails.category}</p>
+                                <p><strong>Quantity:</strong> {listingDetails.quantity}</p>
+                                <p><strong>Expiry Date:</strong> {new Date(listingDetails.expiry_date).toLocaleDateString()}</p>
+                                <p><strong>Location:</strong> {listingDetails.location}</p>
+                            </div>
+                        ) : (
+                            listingId && <p className="text-sm text-red-500">Listing not found</p>
+                        )}
+
                         <button
                             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transform transition hover:scale-105"
                             type="submit"

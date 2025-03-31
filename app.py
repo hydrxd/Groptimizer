@@ -12,6 +12,46 @@ from neo4j import GraphDatabase
 import os
 from google import genai
 from google.genai import types
+import xml.etree.ElementTree as ET
+
+def load_schema(xml_file="schema.xml"):
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    schema = {}
+
+    # Parse MongoDB collections
+    mongo_db = root.find("MongoDB/Database")
+    mongo_name = mongo_db.get("name")
+    schema[mongo_name] = {}
+
+    for collection in mongo_db.findall("Collection"):
+        collection_name = collection.get("name")
+        schema[mongo_name][collection_name] = {}
+        for field in collection.findall("Field"):
+            schema[mongo_name][collection_name][field.get("name")] = field.get("type")
+
+    # Parse Neo4j nodes and relationships
+    neo4j_db = root.find("Neo4j/Database")
+    neo4j_name = neo4j_db.get("name")
+    schema[neo4j_name] = {"Nodes": {}, "Relationships": {}}
+
+    for node in neo4j_db.findall("Node"):
+        node_name = node.get("name")
+        schema[neo4j_name]["Nodes"][node_name] = {}
+        for prop in node.findall("Property"):
+            schema[neo4j_name]["Nodes"][node_name][prop.get("name")] = prop.get("type")
+
+    for relationship in neo4j_db.findall("Relationship"):
+        rel_name = relationship.get("name")
+        schema[neo4j_name]["Relationships"][rel_name] = {}
+        for prop in relationship.findall("Property"):
+            schema[neo4j_name]["Relationships"][rel_name][prop.get("name")] = prop.get("type")
+
+    return schema
+
+# Load schema at startup
+DATABASE_SCHEMA = load_schema()
+
 
 # ---------------------
 # Configuration & Setup
@@ -92,6 +132,27 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
         raise credentials_exception
     return user
 
+def validate_mongo_data(collection_name, data):
+    if collection_name not in DATABASE_SCHEMA["inventory_app"]:
+        raise ValueError(f"Collection {collection_name} is not defined in schema.")
+
+    schema = DATABASE_SCHEMA["inventory_app"][collection_name]
+    for key, value in data.items():
+        if key not in schema:
+            raise ValueError(f"Invalid field {key} for collection {collection_name}.")
+    return True
+
+def validate_neo4j_data(node_or_rel, entity_type, data):
+    if entity_type not in DATABASE_SCHEMA["cities_db"][node_or_rel]:
+        raise ValueError(f"{entity_type} is not defined in Neo4j schema.")
+
+    schema = DATABASE_SCHEMA["cities_db"][node_or_rel][entity_type]
+    for key, value in data.items():
+        if key not in schema:
+            raise ValueError(f"Invalid field {key} for {entity_type}.")
+    return True
+
+
 # ---------------------
 # Pydantic Models
 # ---------------------
@@ -170,6 +231,7 @@ class CityModel(BaseModel):
 class NeighborRelationshipModel(BaseModel):
     city_a: str
     city_b: str
+    distance: float  # Added distance field
 
 # ---------------------
 # API Routes
@@ -219,12 +281,17 @@ async def update_user(user_id: str, user_update: UserModel, current_user: Dict =
 async def create_listing(listing: ListingModel, current_user: Dict = Depends(get_current_user)):
     if current_user["role"] != "supermarket":
         raise HTTPException(status_code=403, detail="Only supermarkets can create listings")
-    listing_dict = listing.dict() #convert to dict
+
+    listing_dict = listing.dict()
     listing_dict["id"] = str(await listings_collection.count_documents({}) + 1)
-    listing_dict["supermarket_id"] = current_user["id"] #add supermarket_id here
     listing_dict["created_at"] = datetime.now(timezone.utc)
+
+    # Validate data against XML schema
+    validate_mongo_data("listings", listing_dict)
+
     await listings_collection.insert_one(listing_dict)
-    return {"msg": "Listing created successfully", "listing_id": listing_dict["id"]} #return the id from the dict.
+    return {"msg": "Listing created successfully", "listing_id": listing_dict["id"]}
+
 
 @app.get("/api/listings", response_model=List[ListingModel])
 async def get_listings(skip: int = 0, limit: int = 10):
@@ -357,12 +424,12 @@ async def admin_stats(current_user: Dict = Depends(get_current_user)):
     }
 
 # Automated Matching Route
-def generate_matching_suggestions(listing: dict, cities: list) -> str:
+def generate_matching_suggestions(listing: dict, bank_info: list) -> str:
     """
     Build a prompt from listing details and nearby cities, call Gemini LLM,
     and return its generated text.
     """
-    # Construct the prompt text using listing and cities context
+    # Construct the prompt text using listing and food bank context
     prompt_text = f"""
 Listing Details:
 Title: {listing.get('title')}
@@ -372,9 +439,10 @@ Quantity: {listing.get('quantity')}
 Expiry Date: {listing.get('expiry_date')}
 Location: {listing.get('location')}
 
-Nearby Cities: {', '.join(cities)}
+Nearby Food Banks:
+{chr(10).join(bank_info)}
 
-Based on the above information, provide matching suggestions for the ideal food bank that should receive this listing. Return your answer as JSON with the keys:
+Based on the above information, provide matching suggestions for 2 possible ideal food banks that could receive this listing. Return your answer as JSON with the keys:
 - "inventory_item_id": string,
 - "recommended_food_bank_id": string,
 - "explanation": string.
@@ -406,54 +474,82 @@ Based on the above information, provide matching suggestions for the ideal food 
 # Updated Matching Endpoint with LLM integration
 @app.post("/api/matching", response_model=Dict[str, Any])
 async def matching_endpoint(match_req: MatchingRequest, current_user: Dict = Depends(get_current_user)):
-    # Restrict to food_bank role only
-    if current_user.get("role") not in ["supermarket","admin"]:
+    # Restrict to supermarket and admin roles
+    if current_user.get("role") not in ["supermarket", "admin"]:
         raise HTTPException(status_code=403, detail="Only supermarkets can access matching suggestions")
-    
+
     listing_id = match_req.listing_id
     listing = await listings_collection.find_one({"id": listing_id})
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    
+
     # Use food bank's location from current_user instead of listing's location
-    food_bank_location = current_user.get("location")
+    food_bank_location = listing['location']
     if not food_bank_location:
         raise HTTPException(status_code=400, detail="Food bank location not set")
-    
-    # Query Neo4j to get the neighboring cities based on food bank's location
-    def get_relevant_cities(tx, city: str):
+
+    # Get neighboring cities and distances from Neo4j
+    def get_relevant_cities_and_distances(tx, city: str):
         query = """
-        MATCH (c:City {name: $city})-[:NEIGHBOR_OF]-(neighbor)
-        RETURN neighbor.name AS city
+        MATCH (c:City {name: $city})-[r:NEIGHBOR_OF]-(neighbor)
+        RETURN neighbor.name AS city, r.distance AS distance
         """
         result = tx.run(query, city=city)
-        return [record["city"] for record in result]
-    
+        return [{"city": record["city"], "distance": record["distance"]} for record in result]
+
     with neo4j_driver.session() as session:
         try:
-            cities = session.read_transaction(get_relevant_cities, food_bank_location)
-            cities.append(food_bank_location)
+            cities_data = session.read_transaction(get_relevant_cities_and_distances, food_bank_location)
+            cities_data.append({"city": food_bank_location, "distance": 0})  # Add the current city with 0 distance
         except Exception as e:
             raise HTTPException(status_code=500, detail="Error querying Neo4j: " + str(e))
-    
-    # Construct a prompt that includes both listing and food bank location context.
-    llm_response = generate_matching_suggestions(listing, cities)
+
+    # Query food banks in the relevant cities
+    city_names = [entry["city"] for entry in cities_data]
+    food_banks = await users_collection.find(
+        {"location": {"$in": city_names}, "role": "food_bank"},
+        {"_id": 0, "name": 1, "location": 1}
+    ).to_list(None)
+
+    # Create a mapping of city -> food banks
+    food_banks_by_city = {}
+    for fb in food_banks:
+        city = fb["location"]
+        if city not in food_banks_by_city:
+            food_banks_by_city[city] = []
+        food_banks_by_city[city].append(fb["name"])
+
+    # Format data for the LLM prompt
+    bank_info = []
+    for entry in cities_data:
+        city = entry["city"]
+        distance = entry["distance"]
+        banks = food_banks_by_city.get(city, [])
+        for bank in banks:
+            bank_info.append(f"{bank} (City: {city}, Distance: {distance} km)")
+
+    llm_response = generate_matching_suggestions(listing, bank_info)
     return {
         "listing_id": listing_id,
         "matches_llm_output": llm_response
     }
 
 
+
 # Neo4j City Management Routes
-@app.post("/api/cities", response_model=Dict[str, Any])
-async def create_city(city: CityModel, current_user: Dict = Depends(get_current_user)):
-    # For simplicity, assume any authenticated user can create city nodes.
+@app.post("/api/cities")
+async def create_city(city: CityModel):
+    city_data = {"name": city.name}
+    
+    # Validate Neo4j data
+    validate_neo4j_data("Nodes", "City", city_data)
+
+    query = "CREATE (c:City {name: $name})"
     with neo4j_driver.session() as session:
-        try:
-            session.write_transaction(lambda tx: tx.run("MERGE (c:City {name: $city_name})", city_name=city.name))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Error creating city: " + str(e))
-    return {"msg": f"City {city.name} created successfully."}
+        session.run(query, name=city.name)
+
+    return {"msg": f"City {city.name} created successfully"}
+
 
 @app.post("/api/cities/neighbors", response_model=Dict[str, Any])
 async def create_neighbor_relationship(neighbor: NeighborRelationshipModel, current_user: Dict = Depends(get_current_user)):
@@ -462,13 +558,17 @@ async def create_neighbor_relationship(neighbor: NeighborRelationshipModel, curr
             session.write_transaction(
                 lambda tx: tx.run("""
                     MATCH (a:City {name: $city_a}), (b:City {name: $city_b})
-                    MERGE (a)-[:NEIGHBOR_OF]->(b)
-                    MERGE (b)-[:NEIGHBOR_OF]->(a)
-                """, city_a=neighbor.city_a, city_b=neighbor.city_b)
+                    MERGE (a)-[r:NEIGHBOR_OF]->(b)
+                    ON CREATE SET r.distance = $distance
+                    MERGE (b)-[r2:NEIGHBOR_OF]->(a)
+                    ON CREATE SET r2.distance = $distance
+                """, city_a=neighbor.city_a, city_b=neighbor.city_b, distance=neighbor.distance)
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail="Error creating neighbor relationship: " + str(e))
-    return {"msg": f"Neighbor relationship between {neighbor.city_a} and {neighbor.city_b} created successfully."}
+    return {
+        "msg": f"Neighbor relationship between {neighbor.city_a} and {neighbor.city_b} created successfully with distance {neighbor.distance}."
+    }
 
 # ---------------------
 # Run the Application

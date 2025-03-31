@@ -44,6 +44,7 @@ function AdminPanel() {
 
     const [cityA, setCityA] = useState("");
     const [cityB, setCityB] = useState("");
+    const [distance, setDistance] = useState("");
     const [neighborMsg, setNeighborMsg] = useState("");
     const [neighborError, setNeighborError] = useState("");
 
@@ -71,12 +72,13 @@ function AdminPanel() {
         try {
             const res = await axios.post(
                 `${BASE_URL}/cities/neighbors`,
-                { city_a: cityA, city_b: cityB },
+                { city_a: cityA, city_b: cityB, distance },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setNeighborMsg(res.data.msg);
             setCityA("");
             setCityB("");
+            setDistance("");
         } catch (err) {
             setNeighborError(err.response?.data?.detail || "Creating neighbor relationship failed");
         }
@@ -114,7 +116,6 @@ function AdminPanel() {
 
     return (
         <div className="p-6 bg-green-100/30 min-h-screen">
-
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Admin Panel</h2>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -152,10 +153,18 @@ function AdminPanel() {
                         />
                         <input
                             type="text"
-                            className="w-full p-3 rounded-lg border-none shadow-inner bg-white/40 backdrop-blur-lg text-gray-900"
+                            className="w-full p-3 mb-3 rounded-lg border-none shadow-inner bg-white/40 backdrop-blur-lg text-gray-900"
                             placeholder="City B"
                             value={cityB}
                             onChange={(e) => setCityB(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="number"
+                            className="w-full p-3 rounded-lg border-none shadow-inner bg-white/40 backdrop-blur-lg text-gray-900"
+                            placeholder="Distance (km)"
+                            value={distance}
+                            onChange={(e) => setDistance(e.target.value)}
                             required
                         />
                         <button className="mt-4 w-full bg-purple-600 text-white p-3 rounded-lg shadow-md hover:bg-purple-700 transition">

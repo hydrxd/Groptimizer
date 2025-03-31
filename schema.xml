@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Databases>
+    <MongoDB>
+        <Database name="inventory_app">
+            <Collection name="users">
+                <Field name="id" type="string"/>
+                <Field name="name" type="string"/>
+                <Field name="email" type="string"/>
+                <Field name="password" type="string"/>
+                <Field name="role" type="string"/>
+                <Field name="location" type="string"/>
+                <Field name="created_at" type="datetime"/>
+            </Collection>
+            <Collection name="listings">
+                <Field name="id" type="string"/>
+                <Field name="title" type="string"/>
+                <Field name="category" type="string"/>
+                <Field name="quantity" type="integer"/>
+                <Field name="created_at" type="datetime"/>
+                <Field name="expiry_date" type="datetime"/>
+                <Field name="location" type="string"/>
+                <Field name="description" type="string"/>
+                <Field name="image_url" type="string"/>
+            </Collection>
+        </Database>
+    </MongoDB>
+    
+    <Neo4j>
+        <Database name="cities_db">
+            <Node name="City">
+                <Property name="name" type="string"/>
+            </Node>
+            <Relationship name="NEIGHBOR_OF">
+                <Property name="distance" type="integer"/>
+            </Relationship>
+        </Database>
+    </Neo4j>
+</Databases>
