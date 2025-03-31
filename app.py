@@ -13,8 +13,11 @@ import os
 from google import genai
 from google.genai import types
 import xml.etree.ElementTree as ET
+import inspect
+
 
 def load_schema(xml_file="schema.xml"):
+    print("[DEBUG] Loading schema.xml...")
     tree = ET.parse(xml_file)
     root = tree.getroot()
     schema = {}
@@ -133,6 +136,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
     return user
 
 def validate_mongo_data(collection_name, data):
+    caller = inspect.stack()[1].function
+    print(f"[DEBUG] Called from {caller}: Validating MongoDB data for collection: {collection_name}")
+
     if collection_name not in DATABASE_SCHEMA["inventory_app"]:
         raise ValueError(f"Collection {collection_name} is not defined in schema.")
 
@@ -142,15 +148,46 @@ def validate_mongo_data(collection_name, data):
             raise ValueError(f"Invalid field {key} for collection {collection_name}.")
     return True
 
+def check_type(value, expected_type):
+    """Validate if the value matches the expected type."""
+    if expected_type == "string":
+        return isinstance(value, str)
+    elif expected_type == "integer":
+        return isinstance(value, int)
+    elif expected_type == "float":
+        return isinstance(value, float)
+    elif expected_type == "boolean":
+        return isinstance(value, bool)
+    elif expected_type == "datetime":
+        from datetime import datetime
+        return isinstance(value, datetime)
+    else:
+        raise ValueError(f"Unknown type {expected_type}")
+
+
 def validate_neo4j_data(node_or_rel, entity_type, data):
+    caller = inspect.stack()[1].function
+    print(f"[DEBUG] Called from {caller}: Validating Neo4j data for {node_or_rel}: {entity_type}")
+
+    if node_or_rel not in DATABASE_SCHEMA["cities_db"]:
+        raise ValueError(f"{node_or_rel} is not a valid entity type in Neo4j schema.")
+
     if entity_type not in DATABASE_SCHEMA["cities_db"][node_or_rel]:
         raise ValueError(f"{entity_type} is not defined in Neo4j schema.")
 
     schema = DATABASE_SCHEMA["cities_db"][node_or_rel][entity_type]
+
     for key, value in data.items():
         if key not in schema:
-            raise ValueError(f"Invalid field {key} for {entity_type}.")
+            raise ValueError(f"Invalid field '{key}' for {entity_type}.")
+        
+        expected_type = schema[key]
+        if not check_type(value, expected_type):
+            raise TypeError(f"Incorrect type for '{key}'. Expected {expected_type}, got {type(value).__name__}.")
+
+    print("[DEBUG] Validation passed!")
     return True
+
 
 
 # ---------------------
@@ -245,6 +282,7 @@ async def register(user: UserModel):
     user.password = hash_password(user.password)
     user.id = str(await users_collection.count_documents({}) + 1)
     user.created_at = datetime.now(timezone.utc)
+    validate_mongo_data('users', user.dict())
     await users_collection.insert_one(user.dict())
     return {"msg": "User registered successfully", "user_id": user.id}
 
@@ -339,6 +377,7 @@ async def create_request(req: RequestCreate, current_user: Dict = Depends(get_cu
         "notes": req.notes,
         "created_at": datetime.now(timezone.utc)
     }
+    validate_mongo_data("requests", new_request)
     await requests_collection.insert_one(new_request)
     return {"msg": "Request created successfully", "request_id": new_request["id"]}
 
@@ -553,6 +592,16 @@ async def create_city(city: CityModel):
 
 @app.post("/api/cities/neighbors", response_model=Dict[str, Any])
 async def create_neighbor_relationship(neighbor: NeighborRelationshipModel, current_user: Dict = Depends(get_current_user)):
+    # Convert input data into a dictionary for validation
+    relationship_data = {"distance": neighbor.distance}
+
+    # Validate the NEIGHBOR_OF relationship using the updated function
+    try:
+        validate_neo4j_data("Relationships", "NEIGHBOR_OF", relationship_data)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"Validation Error: {str(e)}")
+
+    # Proceed with the database transaction
     with neo4j_driver.session() as session:
         try:
             session.write_transaction(
@@ -565,7 +614,8 @@ async def create_neighbor_relationship(neighbor: NeighborRelationshipModel, curr
                 """, city_a=neighbor.city_a, city_b=neighbor.city_b, distance=neighbor.distance)
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail="Error creating neighbor relationship: " + str(e))
+            raise HTTPException(status_code=500, detail=f"Error creating neighbor relationship: {str(e)}")
+
     return {
         "msg": f"Neighbor relationship between {neighbor.city_a} and {neighbor.city_b} created successfully with distance {neighbor.distance}."
     }

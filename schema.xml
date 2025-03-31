@@ -22,6 +22,15 @@
                 <Field name="description" type="string"/>
                 <Field name="image_url" type="string"/>
             </Collection>
+            <Collection name="requests">
+                <Field name="id" type="string"/>
+                <Field name="requester_id" type="string"/>
+                <Field name="listing_id" type="string"/>
+                <Field name="created_at" type="datetime"/>
+                <Field name="status" type="string"/>
+                <Field name="notes" type="string"/>
+                <Field name="location" type="string"/>
+            </Collection>
         </Database>
     </MongoDB>
     
@@ -31,7 +40,7 @@
                 <Property name="name" type="string"/>
             </Node>
             <Relationship name="NEIGHBOR_OF">
-                <Property name="distance" type="integer"/>
+                <Property name="distance" type="float"/>
             </Relationship>
         </Database>
     </Neo4j>
