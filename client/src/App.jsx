@@ -10,6 +10,7 @@ import Requests from './pages/Requests';
 import CreateRequest from './pages/CreateRequest';
 import AdminPanel from './pages/AdminPanel';
 import MatchingAndNeo4j from './pages/MatchingAndNeo4j';
+import FilteredData from './pages/FilteredData';
 
 function App() {
     return (
@@ -31,6 +32,7 @@ function App() {
                     <Route path="/create-request" element={<CreateRequest />} />
                     <Route path="/admin" element={<AdminPanel />} />
                     <Route path="/matching-neo4j" element={<MatchingAndNeo4j />} />
+                    <Route path="/dashboard" element={<FilteredData />} />
                 </Routes>
             </div>
         </div>

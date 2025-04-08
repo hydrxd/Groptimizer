@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const BASE_URL = "http://localhost:8000/api";
@@ -7,14 +7,47 @@ function CreateRequest({ fetchRequests }) {
     const [listingId, setListingId] = useState('');
     const [notes, setNotes] = useState('');
     const [message, setMessage] = useState('');
-    const [location, setLocation] = useState('');
+    const [listingDetails, setListingDetails] = useState(null);
+    const [loadingListing, setLoadingListing] = useState(false);
+    const [listingError, setListingError] = useState('');
 
     const token = localStorage.getItem('access_token');
+
+    // Fetch listing details when listingId changes
+    useEffect(() => {
+        if (!listingId) {
+            setListingDetails(null);
+            setListingError('');
+            return;
+        }
+
+        const fetchListingDetails = async () => {
+            setLoadingListing(true);
+            setListingError('');
+            try {
+                const res = await axios.get(`${BASE_URL}/listings/${listingId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setListingDetails(res.data);
+            } catch (err) {
+                setListingDetails(null);
+                setListingError('Listing not found');
+            } finally {
+                setLoadingListing(false);
+            }
+        };
+
+        fetchListingDetails();
+    }, [listingId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!token) {
             setMessage("You must be logged in to create a request");
+            return;
+        }
+        if (!listingDetails) {
+            setMessage("Please enter a valid Listing ID.");
             return;
         }
         try {
@@ -27,7 +60,8 @@ function CreateRequest({ fetchRequests }) {
             setMessage("Request created!");
             setListingId('');
             setNotes('');
-            setLocation('');
+            setListingDetails(null);
+            setListingError('');
             fetchRequests();
         } catch (error) {
             setMessage("Failed to create request");
@@ -57,6 +91,20 @@ function CreateRequest({ fetchRequests }) {
                         />
                     </div>
 
+                    {loadingListing ? (
+                        <p className="text-sm text-gray-500">Fetching listing details...</p>
+                    ) : listingDetails ? (
+                        <div className="p-2 bg-gray-100 rounded-md text-sm text-gray-700 mb-2">
+                            <p><strong>Title:</strong> {listingDetails.title}</p>
+                            <p><strong>Category:</strong> {listingDetails.category}</p>
+                            <p><strong>Quantity:</strong> {listingDetails.quantity}</p>
+                            <p><strong>Expiry:</strong> {new Date(listingDetails.expiry_date).toLocaleDateString()}</p>
+                            <p><strong>Location:</strong> {listingDetails.location}</p>
+                        </div>
+                    ) : (
+                        listingId && listingError && <p className="text-sm text-red-500">{listingError}</p>
+                    )}
+
                     <div className="relative">
                         <textarea
                             placeholder="Notes"
@@ -66,9 +114,16 @@ function CreateRequest({ fetchRequests }) {
                         ></textarea>
                     </div>
 
-                    <button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-4 py-3 rounded-xl shadow-md hover:shadow-lg transition duration-300 transform hover:scale-105">
-                        Create Request
+                    <button
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-4 py-3 rounded-xl shadow-md hover:shadow-lg transition duration-300 transform hover:scale-105"
+                        type="submit"
+                        disabled={loadingListing || !listingDetails}
+                    >
+                        {loadingListing ? "Fetching..." : "Create Request"}
                     </button>
+                    {!listingDetails && listingId && !loadingListing && (
+                        <p className="text-xs text-gray-600 mt-1">Please ensure the Listing ID is correct before submitting.</p>
+                    )}
                 </form>
             </div>
         </div>
